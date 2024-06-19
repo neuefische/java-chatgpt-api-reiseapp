@@ -1,41 +1,44 @@
 package com.example.chatgptapireiseapp;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
 import java.util.Collections;
 
 @RestController
 @RequestMapping("/travels")
-@RequiredArgsConstructor
 public class TravelController {
 
-    private final WebClient webClient;
+    private final RestClient restClient;
 
-    private final ObjectMapper objectMapper;
+    public TravelController(@Value("${app.openai-api-key}") String openaiApiKey) {
+        this.restClient = RestClient.builder()
+                .baseUrl("https://api.openai.com/v1/chat/completions")
+                .defaultHeader("Authorization", "Bearer " + openaiApiKey)
+                .build();
+    }
+
 
     @PostMapping
-    List<String> getLuggage(@RequestBody String destination) {
-        String jsonText = webClient.post()
-                .bodyValue(new ChatGPTRequest("Gib als JSON-String-Array (Beispiel: `[\"Hut\"]`) 10 Gegenstände aus, die ich mitnehmen soll für die Reise nach: " + destination))
+    String getLuggage(@RequestBody String destination) {
+        ChatGPTResponse response = restClient.post()
+                .body(new ChatGPTRequest("Gib als JSON (Beispiel: `{items: [\"Hut\"]}`) 10 Gegenstände aus, die ich mitnehmen soll für die Reise nach: " + destination))
                 .retrieve()
-                .bodyToMono(ChatGPTResponse.class)
-                .map(ChatGPTResponse::text)
-                .block();
-        try {
-            return objectMapper.readValue(jsonText, new TypeReference<>() {});
-        } catch (JsonProcessingException e) {
-            return List.of("Handgepäck");
-        }
+                .body(ChatGPTResponse.class);
+
+        return response.text();
     }
+}
+
+record ChatGPTRequestMessage(
+        String role,
+        String content
+) {
 }
 
 record ChatGPTMessage(
@@ -46,10 +49,10 @@ record ChatGPTMessage(
 
 record ChatGPTRequest(
         String model,
-        List<ChatGPTMessage> messages
+        List<ChatGPTRequestMessage> messages
 ) {
     ChatGPTRequest(String message) {
-        this("gpt-3.5-turbo", Collections.singletonList(new ChatGPTMessage("user", message)));
+        this("gpt-3.5-turbo", Collections.singletonList(new ChatGPTRequestMessage("user", message)));
     }
 }
 
