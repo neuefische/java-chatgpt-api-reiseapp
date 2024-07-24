@@ -52,7 +52,7 @@ record ChatGPTRequest(
         List<ChatGPTRequestMessage> messages
 ) {
     ChatGPTRequest(String message) {
-        this("gpt-3.5-turbo", Collections.singletonList(new ChatGPTRequestMessage("user", message)));
+        this("gpt-4o-mini", Collections.singletonList(new ChatGPTRequestMessage("user", message)));
     }
 }
 
